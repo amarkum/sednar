@@ -84,7 +84,9 @@ else:
     def test_requests_without_a_login_are_sent_to_log_in(server):
         client = server["app"].test_client()
         r = client.get("/")
-        assert r.status_code == 302 and r.headers["Location"] == "/login"
+        page = r.get_data(as_text=True)
+        assert r.status_code == 200 and '"guest": true' in page and "sednar-public.js" in page
+        assert '"home"' not in page
         assert client.get("/sednar/llm/settings").status_code == 401
         assert b"Log in" in client.get("/login").data and b"Create your account" in client.get("/signup").data
         assert client.get("/healthz").status_code == 200
@@ -300,8 +302,9 @@ else:
         assert "error" in ask("ide_write_file", {"path": project + "/.git/config", "content": "[core]"}, "ide_file_saved")
         assert "error" in ask("ide_rename_entry", {"path": project + "/notes.txt", "new_name": ".git"}, "ide_fs_result")
         assert not os.path.exists(os.path.join(project, ".git"))
-        terminal = ask("terminal_init", {"cwd": "~"}, "terminal_output")
-        assert "off on Sednar's hosted site" in terminal["output"]
+        if not pm._sandbox_ok:
+            terminal = ask("terminal_init", {"cwd": "~"}, "terminal_output")
+            assert "needs a sandbox" in terminal["output"]
         sio.disconnect()
 
     def test_sockets_without_a_login_are_turned_away(server):

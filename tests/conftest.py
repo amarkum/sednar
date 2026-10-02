@@ -16,6 +16,9 @@ sys.path.insert(0, os.path.join(REPO, "host"))  # the host app package (app.runt
 
 _HOME = tempfile.mkdtemp(prefix="sednar-test-home-")
 os.environ["HOME"] = _HOME
+# Sednar always runs as the public app; most tests drive the parts under it, so they turn it off.
+# test_public_mode.py runs its own suite with it on.
+os.environ.setdefault("SEDNAR_PUBLIC", "0")
 
 
 def pytest_sessionfinish(session, exitstatus):

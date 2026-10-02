@@ -1,0 +1,4 @@
+#!/bin/sh
+# The public site puts this folder first on the server's PATH, so each git it starts runs through
+# sandbox.py: inside the user's jail when git works in a user's folder. See sandbox.py.
+exec "${SEDNAR_PYTHON:-python3}" -I -S "$(dirname "$0")/../sandbox.py" git "$@"

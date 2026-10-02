@@ -1,11 +1,13 @@
-// Hosted Sednar: open the user's own sample project, hide what the hosted site turns off (terminal, MCP,
-// language servers), ask for an API key until one is added, and add Settings > Account (the user icon in
+// Hosted Sednar: open the user's own sample project, hide what the hosted site turns off (MCP, language
+// servers), ask for an API key until one is added, and add Settings > Account (the user icon in
 // the top bar opens it).
 (function () {
   var cfg = window.SEDNAR_PUBLIC;
-  if (!cfg || !cfg.home) return;
-  var home = String(cfg.home).replace(/\/+$/, "");
+  if (!cfg) return;
   var brand = cfg.brand || "Sednar";
+  if (cfg.guest) { guest(); return; }
+  if (!cfg.home) return;
+  var home = String(cfg.home).replace(/\/+$/, "");
 
   function inHome(path) {
     return typeof path === "string" && (path === home || path.indexOf(home + "/") === 0);
@@ -75,7 +77,7 @@
         el("ul", {}, [
           el("li", { text: "Your key is saved encrypted and only your account can use it. Nobody else can see it." }),
           el("li", { text: "You have your own copy of a sample project, hello-sednar, with a few bugs to fix." }),
-          el("li", { text: "It edits code: there is no terminal, so the agent reads, edits and plans, but does not run anything." }),
+          el("li", { text: "The terminal works in your own folder only, without internet. The agent reads, edits and plans, but does not run commands." }),
         ]),
         el("div", { class: "lc-public-actions" }, [
           el("button", { type: "button", class: "lc-public-primary", text: "Add API key", onclick: openModels }),
@@ -103,7 +105,7 @@
   }
 
   function logOut() {
-    post("/logout").then(function () { window.location.href = "/login"; });
+    post("/logout").then(function () { window.location.href = "/"; });
   }
 
   function dialog(title, children) {
@@ -275,7 +277,7 @@
   });
 
   function setUpSettings() {
-    var off = { terminal: 1, mcp: 1, languages: 1 };
+    var off = { mcp: 1, languages: 1 };
     try {
       if (typeof _SEDNAR_SETTINGS_SECTIONS !== "undefined") {
         for (var i = _SEDNAR_SETTINGS_SECTIONS.length - 1; i >= 0; i--) {
@@ -286,9 +288,6 @@
         }
       }
     } catch (e) {}
-    var noTerminal = function () { toast("The terminal is off on " + brand + "'s hosted site."); };
-    window.toggleIDETerminal = noTerminal;
-    window.showIDETerminal = noTerminal;
   }
 
   function keyConfigured() {
@@ -306,4 +305,108 @@
       if (!has && !closed) showWelcome();
     });
   });
+
+  // Logged out: the editor opens as it is, and the first click or key anywhere asks to log in.
+  function guest() {
+    var GITHUB_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>';
+    var box = null;
+
+    function close() {
+      if (box) box.remove();
+      box = null;
+    }
+
+    function show(mode) {
+      if (box && !mode) { var first = box.querySelector("input, a, button"); if (first) first.focus(); return; }
+      close();
+      var signup = mode === "signup";
+      var error = el("div", { class: "lc-public-error", role: "alert" });
+      var email = el("input", { type: "email", name: "email", autocomplete: "email", required: "", maxlength: "254", placeholder: "Email", "aria-label": "Email" });
+      var password = el("input", {
+        type: "password", name: "password", autocomplete: signup ? "new-password" : "current-password", required: "",
+        minlength: String(signup ? cfg.minPassword || 8 : 1), maxlength: "200", "aria-label": "Password",
+        placeholder: signup ? "Password (" + (cfg.minPassword || 8) + " characters or more)" : "Password",
+      });
+      var submit = el("button", { type: "submit", class: "lc-public-primary", text: signup ? "Create account" : "Log in" });
+      var form = el("form", { class: "lc-public-login-form" }, [email, password, error, el("div", { class: "lc-public-actions" }, [submit])]);
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        submit.disabled = true;
+        error.textContent = "";
+        var body = new URLSearchParams({ csrf: cfg.csrf || "", email: email.value, password: password.value });
+        // Success redirects to the editor; a refusal comes back as the login page with its message in .error.
+        fetch(signup ? "/signup" : "/login", { method: "POST", body: body, credentials: "same-origin" }).then(function (r) {
+          if (r.redirected) { window.location.replace("/"); return; }
+          return r.text().then(function (html) {
+            var msg = new DOMParser().parseFromString(html, "text/html").querySelector(".error");
+            error.textContent = (msg && msg.textContent.trim()) || "Could not log in. Try again.";
+            submit.disabled = false;
+          });
+        }).catch(function () { error.textContent = "Could not reach " + brand + ". Try again."; submit.disabled = false; });
+      });
+      var github = el("a", { class: "lc-public-github", href: "/auth/github" });
+      github.innerHTML = GITHUB_ICON + "<span>Continue with GitHub</span>";
+      box = el("div", { class: "lc-public-welcome", role: "dialog", "aria-modal": "true", "aria-labelledby": "lc-public-title" }, [
+        el("div", { class: "lc-public-card lc-public-login" }, [
+          el("img", { class: "lc-public-logo lc-public-logo-on-dark", src: "/sednar/assets/sednar/sednar-logo-white.png", alt: "" }),
+          el("img", { class: "lc-public-logo lc-public-logo-on-light", src: "/sednar/assets/sednar/sednar-logo-dark.png", alt: "" }),
+          el("h2", { id: "lc-public-title", text: signup ? "Create your account" : "Log in to " + brand }),
+          el("p", { class: "lc-public-lead", text: signup
+            ? "Try the " + brand + " coding agent in your browser, on a project of your own."
+            : "Log in to use the editor and the agent. Your projects and saved keys are waiting." }),
+          github,
+          el("div", { class: "lc-public-or", text: "or with email" }),
+          form,
+          el("div", { class: "lc-public-switch" }, [
+            document.createTextNode(signup ? "Already have an account? " : "New here? "),
+            el("button", { type: "button", class: "lc-public-link", text: signup ? "Log in" : "Create an account", onclick: function () { show(signup ? "login" : "signup"); } }),
+          ]),
+          el("div", { class: "lc-public-links" }, [
+            el("a", { class: "lc-public-source", href: "/privacy", target: "_blank", rel: "noopener", text: "Privacy" }),
+            cfg.source ? el("a", { class: "lc-public-source", href: cfg.source, target: "_blank", rel: "noopener", text: "Run it on your own machine" }) : null,
+          ]),
+        ]),
+      ]);
+      box.addEventListener("click", function (e) { if (e.target === box) close(); });
+      document.body.appendChild(box);
+      github.focus();
+    }
+
+    // The left bar, where "No folder open" would be: log in, GitHub, or a new account.
+    window.sednarExplorerEmptyHtml = function () {
+      return '<div id="ide-explorer-empty" class="theme-transition">' +
+        '<div class="ide-explorer-empty-title">Log in to ' + esc(brand) + "</div>" +
+        '<div class="ide-explorer-empty-sub">Log in to open your projects and use the agent.</div>' +
+        '<button type="button" class="ide-explorer-empty-btn" data-guest-action="login">Log in</button>' +
+        '<button type="button" class="ide-explorer-empty-btn lc-public-guest-github" data-guest-action="github">' + GITHUB_ICON + "<span>Continue with GitHub</span></button>" +
+        '<button type="button" class="ide-explorer-empty-link" data-guest-action="signup">Create an account</button>' +
+        "</div>";
+    };
+
+    function act(target) {
+      var button = target && target.closest ? target.closest("[data-guest-action]") : null;
+      var action = button ? button.getAttribute("data-guest-action") : "";
+      if (action === "github") window.location.href = "/auth/github";
+      else show(action === "signup" ? "signup" : action === "login" ? "login" : "");
+    }
+
+    // Capture on window runs before the editor's own handlers, so nothing behind the dialog reacts.
+    function gate(e) {
+      if (box && box.contains(e.target)) return;
+      if (e.type === "keydown" && (e.metaKey || e.ctrlKey || e.altKey)) return;  // browser shortcuts (reload, zoom) still work
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.type === "keydown" && e.key === "Escape") { close(); return; }
+      if (e.type === "pointerdown" || e.type === "keydown" || e.type === "touchstart") act(e.target);
+    }
+    ["pointerdown", "mousedown", "mouseup", "click", "dblclick", "contextmenu", "touchstart", "keydown", "keypress", "drop"].forEach(function (type) {
+      window.addEventListener(type, gate, { capture: true, passive: false });
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      document.body.classList.add("lc-public", "lc-public-guest");
+      var empty = document.getElementById("ide-explorer-empty");
+      if (empty) empty.outerHTML = window.sednarExplorerEmptyHtml();
+    });
+  }
 })();

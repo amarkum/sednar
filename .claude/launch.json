@@ -7,6 +7,10 @@
       "runtimeArgs": [
         "server.py"
       ],
+      "env": {
+        "SEDNAR_PUBLIC_ROOT": ".public-visitors",
+        "SEDNAR_SECRET_KEY": "local-public-test"
+      },
       "port": 9000
     },
     {
@@ -16,7 +20,9 @@
         "server.py"
       ],
       "env": {
-        "SEDNAR_PORT": "9001"
+        "SEDNAR_PORT": "9001",
+        "SEDNAR_PUBLIC_ROOT": ".public-visitors",
+        "SEDNAR_SECRET_KEY": "local-public-test"
       },
       "port": 9001
     },
@@ -27,7 +33,6 @@
         "server.py"
       ],
       "env": {
-        "SEDNAR_PUBLIC": "1",
         "SEDNAR_PORT": "9002",
         "SEDNAR_PUBLIC_ROOT": ".public-visitors",
         "SEDNAR_SECRET_KEY": "local-public-test"

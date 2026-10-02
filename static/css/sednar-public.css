@@ -1,11 +1,13 @@
-/* Hosted Sednar: welcome card and dialogs, Settings > Account, and the controls the hosted site turns off. */
+/* Hosted Sednar: welcome card and dialogs, the login panel, and Settings > Account. */
 body.lc-public {
   --lc-public-bg: #252526;
   --lc-public-fg: #e5e5e5;
   --lc-public-muted: #a3a3a3;
   --lc-public-border: rgba(255, 255, 255, 0.12);
-  --lc-public-accent: #3b82f6;
-  --lc-public-accent-fg: #fff;
+  /* The theme's primary button colors, so Log in matches Open and every other primary button. */
+  --lc-public-accent: var(--vscode-button-background, #3b82f6);
+  --lc-public-accent-fg: var(--vscode-button-foreground, #fff);
+  --lc-public-accent-hover: var(--vscode-button-hoverBackground, #2563eb);
   --lc-public-scrim: rgba(0, 0, 0, 0.55);
   --lc-public-danger: #f87171;
 }
@@ -15,7 +17,6 @@ body.lc-public.white-theme {
   --lc-public-fg: #1e293b;
   --lc-public-muted: #64748b;
   --lc-public-border: rgba(15, 23, 42, 0.12);
-  --lc-public-accent: #2563eb;
   --lc-public-scrim: rgba(15, 23, 42, 0.35);
   --lc-public-danger: #b91c1c;
 }
@@ -24,16 +25,8 @@ body.lc-public.pink-theme {
   --lc-public-fg: #831843;
   --lc-public-muted: #9d4b73;
   --lc-public-border: rgba(131, 24, 67, 0.16);
-  --lc-public-accent: #db2777;
   --lc-public-scrim: rgba(131, 24, 67, 0.25);
   --lc-public-danger: #b91c1c;
-}
-
-body.lc-public #ide-activity-terminal,
-body.lc-public #ide-terminal-toggle,
-body.lc-public #ide-terminal-panel,
-body.lc-public #ide-terminal-divider {
-  display: none !important;
 }
 
 .lc-public-welcome {
@@ -81,6 +74,8 @@ body.lc-public #ide-terminal-divider {
   color: var(--lc-public-accent-fg);
 }
 
+.lc-public-primary:hover:not(:disabled) { border-color: var(--lc-public-accent-hover); background: var(--lc-public-accent-hover); }
+
 .lc-public-secondary {
   border: 1px solid var(--lc-public-border);
   background: transparent;
@@ -101,6 +96,7 @@ body.lc-public #ide-terminal-divider {
 }
 
 .lc-public-card input {
+  box-sizing: border-box;
   width: 100%;
   margin: 0 0 8px;
   padding: 8px 10px;
@@ -169,6 +165,70 @@ body.lc-public.white-theme .lc-public-logo-on-dark,
 body.lc-public.pink-theme .lc-public-logo-on-dark { display: none; }
 body.lc-public.white-theme .lc-public-logo-on-light,
 body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
+
+/* Logged out: the login dialog and the Log in button over the editor. */
+.lc-public-login { width: min(380px, 100%); }
+.lc-public-login-form .lc-public-actions button { width: 100%; padding: 10px; font-weight: 600; }
+
+.lc-public-github {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--lc-public-accent);
+  border-radius: 8px;
+  background: var(--lc-public-accent);
+  color: var(--lc-public-accent-fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lc-public-github svg { width: 18px; height: 18px; fill: currentColor; }
+.lc-public-github:hover { border-color: var(--lc-public-accent-hover); background: var(--lc-public-accent-hover); }
+
+.lc-public-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--lc-public-muted);
+  font-size: 13px;
+}
+
+.lc-public-or::before,
+.lc-public-or::after { content: ""; flex: 1; border-top: 1px solid var(--lc-public-border); }
+
+.lc-public-switch { margin-top: 14px; color: var(--lc-public-muted); text-align: center; }
+
+.lc-public-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lc-public-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lc-public-login .lc-public-links { justify-content: center; }
+
+.lc-public-github:focus-visible,
+.lc-public-link:focus-visible {
+  outline: 2px solid var(--lc-public-accent);
+  outline-offset: 2px;
+}
+
+/* Logged out: the left bar asks to log in instead of offering to open a folder. */
+#ide-editor-section #ide-explorer-empty .lc-public-guest-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+#ide-editor-section #ide-explorer-empty .lc-public-guest-github svg { flex: 0 0 14px; width: 14px; height: 14px; fill: currentColor; }
 
 #ide-editor-inner .sednar-settings-view .lc-public-account { gap: 12px; justify-content: flex-start; }
 

@@ -7927,6 +7927,11 @@ body.white-theme #ide-editor-inner #ide-settings-view,
 body.white-theme #ide-editor-inner #ide-project-tabs,
 body.white-theme #ide-editor-inner #ide-hscroll,
 body.white-theme #sednarProjectBrowserModal,
+body.dark-theme .sednar-dialog-overlay {
+	--lc-btn-primary-bg: #3b82f6;
+	--lc-btn-primary-fg: #fff;
+	--lc-btn-primary-hover-bg: #2563eb;
+}
 body.white-theme .sednar-dialog-overlay {
 	--lc-fg: 20 20 20;
 	--lc-bg: #ffffff;
@@ -11147,6 +11152,17 @@ body.white-theme #sednar-chat-messages .sednar-plan-card-build.sednar-btn.is-yel
 	max-width: 100%;
 	height: auto;
 }
+#ide-plan-body .sednar-plan-md .mermaid .mermaid-source {
+	margin: 0;
+	text-align: left;
+	white-space: pre-wrap;
+}
+#ide-plan-body .sednar-plan-md .mermaid .mermaid-error {
+	margin-top: 8px;
+	color: #f87171;
+	font-size: 12px;
+	text-align: left;
+}
 
 #ide-editor-inner #sednar-agent-panel #sednar-chat-composer #sednar-chat-mode-trigger.chatbot-composer-mode-wrap {
 	height: 22px;
@@ -13702,8 +13718,8 @@ body.dark-theme {
 	--vscode-breadcrumb-foreground: #94a3b899;
 	--vscode-breadcrumbPicker-background: #1e293b;
 	--vscode-button-background: #3b82f6;
-	--vscode-button-foreground: #1e293b;
-	--vscode-button-hoverBackground: #60a5fa;
+	--vscode-button-foreground: #ffffff;
+	--vscode-button-hoverBackground: #2563eb;
 	--vscode-button-secondaryBackground: #334155;
 	--vscode-button-secondaryForeground: #e2e8f0;
 	--vscode-button-secondaryHoverBackground: #475569;
@@ -18949,9 +18965,9 @@ body.dark-theme #ide-editor-inner #sednar-agent-panel {
 	--lc-btn-bg: #3d4657;
 	--lc-btn-fg: #f0f0f0;
 	--lc-btn-hover-bg: #566074;
-	--lc-btn-primary-bg: #81a1c1;
-	--lc-btn-primary-fg: #191c22;
-	--lc-btn-primary-hover-bg: #87a6c4;
+	--lc-btn-primary-bg: #3b82f6;
+	--lc-btn-primary-fg: #fff;
+	--lc-btn-primary-hover-bg: #2563eb;
 	--lc-link: #81a1c1;
 	--lc-menu-bg: #131822;
 	--lc-send-bg: rgb(var(--lc-fg) / 0.66);

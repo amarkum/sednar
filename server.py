@@ -114,33 +114,69 @@ def _pump_terminal(sid: str, fd: int) -> None:
         socketio.emit("terminal_output", {"output": data.decode("utf-8", errors="replace")}, room=sid)
 
 
+def _reap_terminal(pid: int) -> None:
+    try:
+        os.waitpid(pid, 0)
+    except OSError:
+        pass
+    public_mode.terminal_ended(pid)
+
+
 def _start_terminal(sid: str, cwd: str | None, rows: int, cols: int) -> int:
     with _terminals_lock:
         if sid in _terminals:
             return _terminals[sid][1]
-    shell = os.environ.get("SHELL") or "/bin/zsh"
-    workdir = os.path.expanduser(cwd) if cwd and os.path.isdir(os.path.expanduser(cwd)) else os.path.expanduser("~")
-    pid, fd = pty.fork()
-    if pid == 0:
-        os.chdir(workdir)
-        env = dict(os.environ, TERM="xterm-256color")
-        os.execvpe(shell, [shell, "-l"], env)
+    if public_mode.ENABLED:
+        # The user's own jail: their folder, no network, nothing of the server's (see sandbox.py).
+        argv, fds, max_file = public_mode.terminal_spec(cwd)
+        pid, fd = pty.fork()
+        if pid == 0:
+            try:
+                import resource
+                resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+                resource.setrlimit(resource.RLIMIT_FSIZE, (max_file, max_file))
+                os.execv(argv[0], argv)
+            finally:
+                os._exit(127)
+        for read_fd in fds.values():
+            os.close(read_fd)
+        public_mode.terminal_started(pid)
+    else:
+        shell = os.environ.get("SHELL") or "/bin/zsh"
+        workdir = os.path.expanduser(cwd) if cwd and os.path.isdir(os.path.expanduser(cwd)) else os.path.expanduser("~")
+        pid, fd = pty.fork()
+        if pid == 0:
+            os.chdir(workdir)
+            env = dict(os.environ, TERM="xterm-256color")
+            os.execvpe(shell, [shell, "-l"], env)
     _set_winsize(fd, rows, cols)
     with _terminals_lock:
         _terminals[sid] = (pid, fd)
     threading.Thread(target=_pump_terminal, args=(sid, fd), daemon=True).start()
+    threading.Thread(target=_reap_terminal, args=(pid,), daemon=True).start()
     return fd
+
+
+def _terminal_refused(sid: str, error: Exception) -> None:
+    socketio.emit("terminal_output", {"output": f"\r\n{error}\r\n"}, room=sid)
 
 
 @socketio.on("terminal_init")
 def on_terminal_init(data):
     data = data or {}
-    _start_terminal(request.sid, data.get("cwd"), int(data.get("rows") or 24), int(data.get("cols") or 80))
+    try:
+        _start_terminal(request.sid, data.get("cwd"), int(data.get("rows") or 24), int(data.get("cols") or 80))
+    except public_mode.Refused as e:
+        _terminal_refused(request.sid, e)
 
 
 @socketio.on("terminal_input")
 def on_terminal_input(data):
-    fd = _start_terminal(request.sid, None, 24, 80)
+    try:
+        fd = _start_terminal(request.sid, None, 24, 80)
+    except public_mode.Refused as e:
+        _terminal_refused(request.sid, e)
+        return
     text = (data or {}).get("input") or ""
     if text:
         os.write(fd, text.encode("utf-8"))

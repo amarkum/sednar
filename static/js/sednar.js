@@ -5624,7 +5624,9 @@ window.updateSednarExplorerHeader = updateSednarExplorerHeader;
 function renderSednarExplorerEmpty() {
   const fileTreeEl = document.getElementById("ide-file-tree");
   if (!fileTreeEl) return;
-  fileTreeEl.innerHTML = `<div id="ide-explorer-empty" class="theme-transition">
+  // The public site shows its own panel here while logged out (sednar-public.js).
+  const custom = typeof window.sednarExplorerEmptyHtml === "function" ? window.sednarExplorerEmptyHtml() : "";
+  fileTreeEl.innerHTML = custom || `<div id="ide-explorer-empty" class="theme-transition">
      <div class="ide-explorer-empty-title">No folder open</div>
      <div class="ide-explorer-empty-sub">Browse files and let the agent work in a folder.</div>
      <button type="button" class="ide-explorer-empty-btn" onclick="openSednarProjectBrowser(); return false;">Open folder</button>
@@ -5817,7 +5819,8 @@ const _SEDNAR_PROJECT_TAB_ICONS = {
 function _sednarRenderProjectTabs() {
   const strip = document.getElementById("ide-project-tabs");
   if (!strip) return;
-  const list = _sednarLoadOpenProjects();
+  // Logged out on the public site: the bar shows, without the projects saved for the last login.
+  const list = window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.guest ? [] : _sednarLoadOpenProjects();
   const activeKey = _sednarActiveProjectKey();
   const esc = function(text) { return _sednarEscapeHtml(String(text || "")).replace(/"/g, "&quot;"); };
   const tabsHtml = list.map(function(entry) {
@@ -5864,7 +5867,7 @@ function _sednarRenderProjectTabs() {
       '<svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"></path></svg>' + "</button>" : "") +
     '<button type="button" id="sednar-settings-open" class="sednar-chat-tab-action theme-transition" onclick="openSednarSettings(); return false;" title="Settings" aria-label="Settings">' +
     _sednarIcon("settings-gear", { size: "lg" }) + "</button>";
-  strip.hidden = !list.length;
+  strip.hidden = false;
   if (html === _sednarProjectTabsHtml) return;
   const existingList = strip.querySelector(".ide-project-tabs-list");
   if (existingList && strip.dataset.actionsBuilt === "1") {
@@ -6115,9 +6118,14 @@ async function initSednarProjectState() {
   _sednarBindProjectStateListenersOnce();
   _sednarBindProjectTabsOnce();
   _sednarLoadOpenProjects();
-  const workspace = _sednarLoadBrowserWorkspace();
+  // Logged out on the public site: nothing to reopen, and the saved projects stay for after login.
+  const guest = !!(window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.guest);
+  const workspace = guest ? null : _sednarLoadBrowserWorkspace();
   let restored = workspace ? await _sednarRestoreBrowserWorkspace(workspace) : false;
-  if (!restored) {
+  if (guest) {
+    renderSednarExplorerEmpty();
+    updateOpenFilesList();
+  } else if (!restored) {
     let last = null;
     try { last = localStorage.getItem(SEDNAR_LAST_PROJECT_KEY); } catch (e) {}
     if (last) {
@@ -6314,8 +6322,15 @@ function _sednarRenderFinderBreadcrumb(actualPath) {
     el.innerHTML = html;
     return;
   }
-  const parts = actualPath.replace(/\/$/, "").split("/").filter(Boolean);
+  // On the public site everything is inside the user's folder: it is Home, and the server path above it is not shown.
+  const publicHome = window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.home ? String(window.SEDNAR_PUBLIC.home).replace(/\/+$/, "") : "";
+  let shown = actualPath.replace(/\/$/, "");
   let currentPath = "";
+  if (publicHome && (shown === publicHome || shown.indexOf(publicHome + "/") === 0)) {
+    shown = shown.slice(publicHome.length);
+    currentPath = publicHome;
+  }
+  const parts = shown.split("/").filter(Boolean);
   parts.forEach(function(part) {
     currentPath += "/" + part;
     const esc = currentPath.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -6333,7 +6348,7 @@ function _sednarUsernameFromHomePath(homePath) {
 function _sednarUpdateFinderSidebarHomeLabel() {
   const btn = document.querySelector('.sednar-finder-sidebar-item[data-finder-path="~"]');
   if (!btn) return;
-  const username = _sednarUsernameFromHomePath(_sednarBrowserHomePath);
+  const username = window.SEDNAR_PUBLIC ? "" : _sednarUsernameFromHomePath(_sednarBrowserHomePath);
   btn.textContent = username || "Home";
 }
 

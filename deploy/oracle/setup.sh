@@ -17,6 +17,11 @@ sudo netfilter-persistent save
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
 sudo usermod -aG docker "$USER"
 
+# The terminal's sandbox (bubblewrap, in the container) needs user namespaces, which Ubuntu 24.04 limits
+# to programs with an AppArmor profile that allows them.
+echo "kernel.apparmor_restrict_unprivileged_userns=0" | sudo tee /etc/sysctl.d/60-sednar-userns.conf >/dev/null
+sudo sysctl --system >/dev/null
+
 if [ ! -f .env ]; then
   sed "s/^SEDNAR_SECRET_KEY=.*/SEDNAR_SECRET_KEY=$(openssl rand -hex 32)/" .env.example > .env
   chmod 600 .env

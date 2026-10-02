@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=9000
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ripgrep \
+    && apt-get install -y --no-install-recommends git ripgrep bubblewrap \
     && rm -rf /var/lib/apt/lists/*
 
 # The package imports itself as `sednar`, so the code must sit in a folder of that name.

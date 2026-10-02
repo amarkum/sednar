@@ -1,13 +1,14 @@
 """Public mode: one Sednar server where people sign up, log in and use their own API key.
 
-Turned on with SEDNAR_PUBLIC=1 (the Dockerfile does this). Accounts are in public_accounts.py. Each user
+Always on: Sednar runs only as this public app. Accounts are in public_accounts.py. Each user
 gets a folder of their own under SEDNAR_PUBLIC_ROOT, with a sample project in it. Their API keys are saved
 encrypted with a key only their password gives, and are held in memory while they are logged in; their
 agent settings and preferences are saved in their folder.
 
-Anything that runs programs on the server is off: the terminal, run_command and background commands, MCP
-servers and language servers. With any of them, one visitor could read another visitor's files or keys.
-Every path in a request or socket event must stay inside the visitor's folder.
+The terminal runs in a bubblewrap jail (sandbox.py) that sees only the user's own folder, with no network.
+Every git the server starts for a user's folder runs in that jail too, since the terminal can write .git.
+Everything else that runs programs on the server is off: the agent's run_command and background commands,
+MCP servers and language servers. Every path in a request or socket event must stay inside the user's folder.
 
 The patches below swap module-level functions, so the rest of Sednar runs as it does on a laptop.
 """
@@ -22,6 +23,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -30,7 +32,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-ENABLED = os.environ.get("SEDNAR_PUBLIC", "").strip().lower() in ("1", "true", "yes", "on")
+# Sednar is a public app: always on. Only the test suite turns it off (SEDNAR_PUBLIC=0), to test the parts below it.
+ENABLED = os.environ.get("SEDNAR_PUBLIC", "1").strip().lower() not in ("0", "false", "no", "off")
 ROOT = os.path.realpath(os.path.expanduser(os.environ.get("SEDNAR_PUBLIC_ROOT") or "~/sednar-visitors"))
 DB_PATH = os.path.realpath(os.path.expanduser(os.environ.get("SEDNAR_PUBLIC_DB") or os.path.join(ROOT, "accounts.sqlite3")))
 SESSION_DAYS = float(os.environ.get("SEDNAR_PUBLIC_SESSION_DAYS") or 30)
@@ -90,7 +93,9 @@ _OPEN_PATHS = frozenset({"/healthz", "/favicon.ico", "/site.webmanifest", "/priv
 _AUTH_PATHS = frozenset({"/login", "/signup", "/logout", "/auth/github", "/auth/github/callback"})
 
 _OFF_TOOLS = frozenset({"run_command", "kill_command", "restart_command", "command_status", "call_mcp_tool"})
-_SOCKET_OFF = frozenset({"terminal_init", "terminal_input", "terminal_resize", "ide_reveal_path"})
+_SOCKET_OFF = frozenset({"ide_reveal_path"})
+_TERMINAL_EVENTS = frozenset({"terminal_init", "terminal_input", "terminal_resize"})
+MAX_TERMINALS = int(os.environ.get("SEDNAR_PUBLIC_MAX_TERMINALS") or 2)
 _SOCKET_REPLY = {
     "ide_list_files": ("ide_files_list", None), "ide_mkdir": ("ide_mkdir_result", None),
     "ide_read_file": ("ide_file_content", None), "ide_write_file": ("ide_file_saved", None),
@@ -166,12 +171,60 @@ def ensure_home(vid: str) -> None:
 
 
 def _lock_out(vid: str) -> None:
-    """Drops what memory holds for a user who has no login open any more."""
+    """Drops what memory holds for a user who has no login open any more, and ends their terminals."""
     with _lock:
         _logins.pop(vid, None)
         _unlock.pop(vid, None)
         _github_tokens.pop(vid, None)
         _llm.pop(vid, None)
+        pids = _terminal_pids.pop(vid, set())
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
+# --- terminal -------------------------------------------------------------------------------------
+
+_sandbox_ok = False
+_terminal_pids: dict[str, set[int]] = {}
+
+
+def _display_name(vid: str) -> str:
+    """The name a user's terminal goes by: their id without its random part (amar-3f9c1a2b is amar)."""
+    match = re.match(r"^([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)-[0-9a-f]{8}$", vid)
+    return match.group(1)[:32] if match else "user"
+
+
+def terminal_spec(cwd: str | None) -> tuple[list[str], dict[str, int], int]:
+    """The command for this user's terminal: (argv, file descriptors to close after the fork, file size limit)."""
+    vid = current()
+    if not vid:
+        raise Refused("You are logged out. Reload the page and log in again.")
+    if not _sandbox_ok:
+        raise Refused("The terminal needs a sandbox (bubblewrap) that this server does not have.")
+    with _lock:
+        if len(_terminal_pids.get(vid, ())) >= MAX_TERMINALS:
+            raise Refused(f"You already have {MAX_TERMINALS} terminals open. Close one, then try again.")
+    from sednar import sandbox
+    argv, fds = sandbox.terminal(home(vid), _display_name(vid), cwd)
+    return argv, fds, QUOTA_MB * 1024 * 1024
+
+
+def terminal_started(pid: int) -> None:
+    vid = current()
+    if vid:
+        with _lock:
+            _terminal_pids.setdefault(vid, set()).add(pid)
+
+
+def terminal_ended(pid: int) -> None:
+    with _lock:
+        for vid, pids in list(_terminal_pids.items()):
+            pids.discard(pid)
+            if not pids:
+                _terminal_pids.pop(vid, None)
 
 
 def forget(vid: str) -> None:
@@ -440,6 +493,12 @@ def _git_environment() -> None:
     os.environ["GIT_TERMINAL_PROMPT"] = "0"
     os.environ["GIT_ALLOW_PROTOCOL"] = "https"
     os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+    if _sandbox_ok:
+        # A terminal can write .git/config, so every git the server starts runs in the user's jail.
+        from sednar import sandbox
+        os.environ["PATH"] = sandbox.SHIM_DIR + os.pathsep + os.environ.get("PATH", "")
+        os.environ[sandbox.ROOT_ENV] = ROOT
+        os.environ["SEDNAR_PYTHON"] = sys.executable
 
 
 def install(port: int) -> None:
@@ -456,6 +515,11 @@ def install(port: int) -> None:
     os.makedirs(jail, exist_ok=True)
     os.chmod(jail, 0o555)
     os.chdir(jail)
+    global _sandbox_ok
+    from sednar import sandbox
+    _sandbox_ok = sandbox.works()
+    if not _sandbox_ok:
+        logger.warning("Sednar public mode: no working bubblewrap sandbox, so the terminal is off.")
     _git_environment()
     _carry_context_into_pools()
 
@@ -575,7 +639,7 @@ def install_app(app, socketio) -> None:
         vid = current()
         if not vid:
             if path == "/" and request.method == "GET":
-                return redirect("/login")
+                return None  # the editor opens for everyone; the first click asks to log in
             return _refuse("You are logged out. Reload the page and log in again.", 401)
         ensure_home(vid)
         if path in _WRITING_PATHS and request.method == "POST":
@@ -634,6 +698,9 @@ def install_app(app, socketio) -> None:
                     return bool(vid) and handler(*args) is not False
                 if not vid or not os.path.isdir(home(vid)):
                     return None  # no cookie, or a visitor who has since been removed
+                if message in _TERMINAL_EVENTS and not _sandbox_ok:
+                    _socket_refused(socketio, message, args, "The terminal needs a sandbox (bubblewrap) that this server does not have.")
+                    return None
                 if message in _SOCKET_OFF:
                     _socket_refused(socketio, message, args, OFF_MESSAGE.format(what="This feature is"))
                     return None
@@ -666,7 +733,7 @@ def install_app(app, socketio) -> None:
 def _socket_refused(socketio, message: str, args: tuple, error: str) -> None:
     from flask import request
     if message == "terminal_init":
-        socketio.emit("terminal_output", {"output": f"\r\n{OFF_MESSAGE.format(what='The terminal is')}\r\n"}, room=request.sid)
+        socketio.emit("terminal_output", {"output": f"\r\n{error}\r\n"}, room=request.sid)
         return
     reply = _SOCKET_REPLY.get(message)
     if not reply:
@@ -829,11 +896,15 @@ _AUTH_PAGE = """<!doctype html>
 <meta name="theme-color" content="#0f0f10">
 <style>
   :root { --bg: #1e1e1e; --card: #252526; --fg: #e5e5e5; --muted: #a3a3a3; --border: rgba(255,255,255,.12);
-          --field: #1b1b1c; --accent: #3b82f6; --accent-fg: #fff; --error: #f87171; }
+          --field: #1b1b1c; --accent: #81a1c1; --accent-hover: #87a6c4; --accent-fg: #191c22; --error: #f87171; }
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f8fafc; --card: #fff; --fg: #1e293b;
-          --muted: #64748b; --border: rgba(15,23,42,.12); --field: #fff; --accent: #2563eb; --error: #b91c1c; } }
+          --muted: #64748b; --border: rgba(15,23,42,.12); --field: #fff; --accent: #2778c1; --accent-hover: #2268a8;
+          --accent-fg: #fcfcfc; --error: #b91c1c; } }
   :root[data-theme="light"] { --bg: #f8fafc; --card: #fff; --fg: #1e293b; --muted: #64748b; --border: rgba(15,23,42,.12);
-          --field: #fff; --accent: #2563eb; --error: #b91c1c; }
+          --field: #fff; --accent: #2778c1; --accent-hover: #2268a8; --accent-fg: #fcfcfc; --error: #b91c1c; }
+  /* Buttons in the editor's own colors for the theme picked there (Black, the default, is soft blue). */
+  :root[data-sednar-theme="dark"] { --accent: #3b82f6; --accent-hover: #2563eb; --accent-fg: #fff; }
+  :root[data-sednar-theme="pink"] { --accent: #db2777; --accent-hover: #be185d; --accent-fg: #fff; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg);
          color: var(--fg); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -856,17 +927,18 @@ _AUTH_PAGE = """<!doctype html>
   .error { margin: 0 0 14px; padding: 8px 10px; border: 1px solid var(--error); border-radius: 8px; color: var(--error); font-size: 14px; }
   .switch { margin: 18px 0 0; text-align: center; font-size: 14px; color: var(--muted); }
   a { color: var(--accent); }
-  .note { margin: 18px 0 0; font-size: 12px; color: var(--muted); }
+  .note { margin: 18px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+  button:hover, .github:hover { background: var(--accent-hover); }
   .doc h1 { margin-bottom: 12px; } .doc h2 { margin: 22px 0 6px; font-size: 16px; }
   .doc p, .doc li { color: var(--fg); font-size: 14px; } .doc ul { padding-left: 20px; } .doc li + li { margin-top: 6px; }
   .github { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px;
-            border: 1px solid var(--border); border-radius: 8px; background: var(--field); color: var(--fg);
+            border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
             font-weight: 600; text-decoration: none; }
   .github svg { width: 18px; height: 18px; fill: currentColor; }
   .or { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: 13px; }
   .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
 </style>
-<script>try { var t = localStorage.getItem("sednar-theme"); if (t === "white" || t === "pink") document.documentElement.dataset.theme = "light"; else if (t === "dark" || t === "black") document.documentElement.dataset.theme = "dark"; } catch (e) {}</script>
+<script>try { var t = localStorage.getItem("sednar-theme"); if (t === "white" || t === "pink") document.documentElement.dataset.theme = "light"; else if (t === "dark" || t === "black") document.documentElement.dataset.theme = "dark"; if (t) document.documentElement.dataset.sednarTheme = t; } catch (e) {}</script>
 </head>
 <body>
 <main>
@@ -884,7 +956,7 @@ _AUTH_PAGE = """<!doctype html>
     <button type="submit">__BUTTON__</button>
   </form>
   <div class="switch">__SWITCH__</div>
-  <div class="note">You bring your own model API key; it is saved encrypted, for your account only. There is no terminal on the hosted site. <a href="/privacy">Privacy</a>__SOURCE_LINK__</div>
+  <div class="note"><a href="/privacy">Privacy</a>__SOURCE_LINK__</div>
 </main>
 </body>
 </html>
@@ -940,7 +1012,7 @@ def _privacy_page():
 def _auth_page(mode: str, error: str = "", email: str = "", status: int = 200):
     from html import escape
     from flask import Response
-    from sednar import public_accounts, public_github
+    from sednar import public_accounts
     signup = mode == "signup"
     values = {
         "__TITLE__": "Sign up" if signup else "Log in",
@@ -957,7 +1029,7 @@ def _auth_page(mode: str, error: str = "", email: str = "", status: int = 200):
         "__SWITCH__": 'Already have an account? <a href="/login">Log in</a>' if signup
                       else 'New here? <a href="/signup">Create an account</a>',
         "__SOURCE_LINK__": f' · <a href="{escape(SOURCE_URL)}" target="_blank" rel="noopener">Run it yourself</a>' if SOURCE_URL else "",
-        "__GITHUB__": _GITHUB_BUTTON if public_github.enabled() else "",
+        "__GITHUB__": _GITHUB_BUTTON,
         "__BRAND__": escape(BRAND),
     }
     page = _AUTH_PAGE
@@ -1012,7 +1084,7 @@ def _install_account_routes(app) -> None:
     def sednar_public_logout():
         if _csrf_ok():
             _end_login()
-        return redirect("/login")
+        return redirect("/")
 
     @app.route("/account/delete", methods=["POST"])
     def sednar_public_delete_account():
@@ -1072,7 +1144,7 @@ def _install_account_routes(app) -> None:
     @app.route("/auth/github")
     def sednar_public_github_start():
         if not public_github.enabled():
-            return redirect("/login")
+            return _auth_page("login", "GitHub sign-in is not set up on this server. Log in with email.", status=503)
         state = secrets.token_urlsafe(24)
         session["lc_github_state"] = state
         return redirect(public_github.authorize_url(github_redirect_uri(), state))
@@ -1132,12 +1204,17 @@ def page_config() -> str:
         return ""
     from sednar import public_accounts
     vid = current()
-    info = public_accounts.account(vid) if vid else {}
-    with _lock:
-        has_github = bool(vid and vid in _github_tokens)
-    config = {"home": home(), "project": sample_project(), "email": info.get("name", ""),
-              "github": info.get("github", ""), "githubRepos": has_github, "csrf": _csrf_token(), "source": SOURCE_URL,
-              "brand": BRAND}
+    if vid:
+        info = public_accounts.account(vid)
+        with _lock:
+            has_github = bool(vid in _github_tokens)
+        config = {"home": home(), "project": sample_project(), "email": info.get("name", ""),
+                  "github": info.get("github", ""), "githubRepos": has_github, "csrf": _csrf_token(), "source": SOURCE_URL,
+                  "brand": BRAND}
+    else:
+        # Logged out: the editor shows, and the public script asks to log in before anything is used.
+        config = {"guest": True, "minPassword": public_accounts.MIN_PASSWORD, "csrf": _csrf_token(),
+                  "source": SOURCE_URL, "brand": BRAND}
     return ("<script>window.SEDNAR_PUBLIC = " + json.dumps(config).replace("</", "<\\/") + ";</script>\n"
             '<link rel="stylesheet" href="/sednar/static/css/sednar-public.css">\n'
             '<script src="/sednar/static/js/sednar-public.js"></script>\n')

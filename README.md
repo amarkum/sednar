@@ -16,7 +16,7 @@
 
 ---
 
-Sednar is an editor, a terminal and a coding agent in one window. You can use it at [sednar.com](https://sednar.com), described in [Host a public demo](#host-a-public-demo), or run it on your own machine as the rest of this README explains.
+Sednar is an editor and a coding agent in one window, and it is a public app: use it at [sednar.com](https://sednar.com). Open the site, and the editor is there; log in with GitHub or an email to use it. Running `server.py` starts the same public app, for working on Sednar itself; [Host it](#host-a-public-demo) explains how sednar.com is deployed.
 
 ## Screenshots
 
@@ -70,11 +70,13 @@ pip install -r requirements.txt
 python3 server.py
 ```
 
-Open **http://localhost:9000**, then:
+Open **http://localhost:9000**. It is the same public app as sednar.com, so:
 
-1. Open a project folder, or clone or create a new one.
+1. The editor opens; click **Log in** in the left bar and create an account (or continue with GitHub, if `SEDNAR_GITHUB_CLIENT_ID` and `SEDNAR_GITHUB_CLIENT_SECRET` are set).
 2. Go to **Settings → Models**, add an API key and make that provider the default.
-3. Start chatting in the agent panel.
+3. Start chatting in the agent panel, in your own copy of the sample project.
+
+Accounts and their folders go in `~/sednar-visitors` (set `SEDNAR_PUBLIC_ROOT` to change it). Set `SEDNAR_SECRET_KEY` to stay logged in across restarts.
 
 To use a different port, set `SEDNAR_PORT`:
 
@@ -164,16 +166,16 @@ To put it online, deploy `render.yaml` as a Render Blueprint, or run the image o
 
 The image serves the site with gunicorn (`gunicorn.conf.py`: one process, many threads). Requests for any other address, such as www.sednar.com or the onrender.com one, redirect to `SEDNAR_PUBLIC_URL`. Pages carry security headers (HSTS over HTTPS, no framing, `nosniff`), and `/privacy` says what is stored.
 
-Public mode (`SEDNAR_PUBLIC=1`, in `public_mode.py` and `public_accounts.py`) changes this:
+Sednar always runs in public mode (`public_mode.py` and `public_accounts.py`):
 
-- People sign up with an email and a password, or with GitHub. Passwords are stored as scrypt hashes, and logins are rate limited. People who sign in with GitHub can open any of their repositories from Settings > Account: it is cloned into their folder and opened in the editor. Each account gets a folder of its own with the sample project from `public/sample-project/`. Settings > Account (the user icon in the top bar) shows who is signed in, changes the password, logs out, or deletes the account with everything in it.
+- Anyone can open the site and see the editor; clicking anything asks them to log in. People sign up with an email and a password, or with GitHub. Passwords are stored as scrypt hashes, and logins are rate limited. People who sign in with GitHub can open any of their repositories from Settings > Account: it is cloned into their folder and opened in the editor. Each account gets a folder of its own with the sample project from `public/sample-project/`. Settings > Account (the user icon in the top bar) shows who is signed in, changes the password, logs out, or deletes the account with everything in it.
 - API keys are saved encrypted (AES-GCM). For a password account the key comes from the password, so the server can read them only while that user is logged in. A GitHub account has no password, so its key comes from `SEDNAR_PUBLIC_DATA_KEY` (or `SEDNAR_SECRET_KEY`) and the user's salt. A restart logs everyone out. Agent settings and preferences are saved in the user's folder.
-- Anything that runs programs on the server is off: the terminal, `run_command` and background commands, MCP servers and language servers. The agent can still read, search, edit, plan and look things up on the web.
+- The terminal runs in a [bubblewrap](https://github.com/containers/bubblewrap) jail (`sandbox.py`): it sees only the user's own folder (as `/home/<name>`), the system read-only, and its own processes; it has no network and none of the server's environment. A user has two terminals at most, and logging out ends them. Every git the server runs for a user's folder runs in the same jail, because the terminal can write `.git/config`. The jail needs user namespaces, so the container runs with `seccomp=unconfined` and `apparmor=unconfined`, and the host needs `kernel.apparmor_restrict_unprivileged_userns=0` (`deploy/oracle/setup.sh` sets it). Without a working jail, the terminal is off.
+- The rest of what runs programs on the server is off: the agent's `run_command` and background commands, MCP servers and language servers. The agent can still read, search, edit, plan and look things up on the web.
 - Every path in a request or socket event must stay inside the user's folder. Git runs with settings a repository cannot override, nothing may write inside `.git`, and cloning takes public `https://` repositories only (one commit deep, 200 MB at most).
 
 | Variable | Purpose |
 | --- | --- |
-| `SEDNAR_PUBLIC` | `1` turns public mode on (the Dockerfile sets it) |
 | `SEDNAR_PUBLIC_BRAND` | The site's name in page titles and on the sign-in pages (default `Sednar`) |
 | `SEDNAR_PUBLIC_SOURCE_URL` | Where people can get the code; shows a "Run it yourself" link when set |
 | `SEDNAR_SECRET_KEY` | Signs the login cookie; set it, or logins end on every restart |
@@ -188,6 +190,7 @@ Public mode (`SEDNAR_PUBLIC=1`, in `public_mode.py` and `public_accounts.py`) ch
 | `SEDNAR_PUBLIC_SECURE_COOKIE` | `1` when the site is served over HTTPS (the cookie becomes `__Host-sednar`) |
 | `SEDNAR_PUBLIC_QUOTA_MB` | How much a user's folder may hold before writes are refused (default `500`) |
 | `SEDNAR_PUBLIC_MAX_TURNS` | Chats one user may have working at once (default `2`) |
+| `SEDNAR_PUBLIC_MAX_TERMINALS` | Terminals one user may have open at once (default `2`) |
 | `SEDNAR_PUBLIC_CONTACT` | A contact line for the privacy page |
 | `SEDNAR_THREADS` | gunicorn threads; each open page and each running turn holds one (default `64`) |
 | `SEDNAR_PUBLIC_ORIGINS` | Comma-separated origins allowed to open the socket, if not the site's own |

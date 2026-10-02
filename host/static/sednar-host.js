@@ -1099,6 +1099,47 @@ window.renderMarkdownInElement = function(el, markdown, options) {
   });
 };
 
+// Draws each .mermaid node under root (its text is the diagram source) as an SVG. A diagram that does not
+// parse stays as its source with the parse error under it. Diagrams render one at a time, as mermaid needs.
+let _sednarMermaidCount = 0;
+function _mdpdfRenderMermaidDiagrams(root, _sourcePrefix, renderPrefix, _forPdf, themeVariables) {
+  if (!root || typeof mermaid === "undefined") return Promise.resolve();
+  const nodes = Array.prototype.slice.call(root.querySelectorAll(".mermaid:not([data-processed])"));
+  if (!nodes.length) return Promise.resolve();
+  const vars = themeVariables || {};
+  const light = document.body.classList.contains("white-theme") || document.body.classList.contains("pink-theme");
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: Object.keys(vars).length ? "base" : (light ? "default" : "dark"),
+    themeVariables: vars,
+  });
+  return nodes.reduce(function(chain, node) {
+    return chain.then(function() {
+      const source = node.textContent || "";
+      const id = (renderPrefix || "sednar-mermaid-") + "svg-" + (++_sednarMermaidCount);
+      node.setAttribute("data-processed", "true");
+      return mermaid.render(id, source).then(function(result) {
+        node.innerHTML = result.svg;
+        if (result.bindFunctions) result.bindFunctions(node);
+      }).catch(function(err) {
+        // mermaid leaves its scratch element behind when a diagram fails to parse.
+        const scratch = document.getElementById("d" + id);
+        if (scratch) scratch.remove();
+        node.textContent = "";
+        const pre = document.createElement("pre");
+        pre.className = "mermaid-source";
+        pre.textContent = source;
+        const msg = document.createElement("div");
+        msg.className = "mermaid-error";
+        msg.textContent = "Diagram error: " + String((err && err.message) || err).split("\n")[0];
+        node.appendChild(pre);
+        node.appendChild(msg);
+      });
+    });
+  }, Promise.resolve());
+}
+
 window.mountSednarChatMarkdown = function(el, markdown, options) {
   if (!el) return;
   const opts = Object.assign({ persistRaw: true }, options || {});
