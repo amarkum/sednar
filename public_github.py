@@ -45,9 +45,12 @@ def exchange_code(code: str, redirect_uri: str) -> str:
     resp = requests.post(TOKEN_URL, headers={"Accept": "application/json"}, timeout=TIMEOUT, data={
         "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET, "code": code, "redirect_uri": redirect_uri,
     })
-    token = (resp.json() if resp.ok else {}).get("access_token")
+    try:
+        token = (resp.json() if resp.ok else {}).get("access_token")
+    except ValueError:
+        token = None
     if not token:
-        raise GitHubError("GitHub did not sign you in. Try again.")
+        raise GitHubError("GitHub did not complete the sign-in. Click Continue with GitHub to try again.")
     return str(token)
 
 
@@ -56,16 +59,16 @@ def _get(token: str, path: str, **params: Any) -> Any:
         "Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28",
     })
     if resp.status_code == 401:
-        raise GitHubError("GitHub signed you out. Log in with GitHub again.")
+        raise GitHubError("GitHub no longer accepts this login. Log out, then log in with GitHub again.")
     if not resp.ok:
-        raise GitHubError(f"GitHub answered {resp.status_code}.")
+        raise GitHubError(f"GitHub answered with an error ({resp.status_code}). Try again in a moment.")
     return resp.json()
 
 
 def user(token: str) -> dict[str, Any]:
     data = _get(token, "/user")
     if not isinstance(data, dict) or not data.get("id") or not data.get("login"):
-        raise GitHubError("GitHub did not say who you are.")
+        raise GitHubError("GitHub did not say who you are, so you were not logged in. Try again.")
     return {"id": int(data["id"]), "login": str(data["login"]), "name": str(data.get("name") or "")}
 
 

@@ -403,6 +403,21 @@ else:
     def test_the_login_page_offers_github(server):
         page = server["app"].test_client().get("/login").get_data(as_text=True)
         assert 'href="/auth/github"' in page and "Continue with GitHub" in page
+        guest = server["app"].test_client().get("/").get_data(as_text=True)
+        assert '"githubLogin": true' in guest
+
+    def test_without_a_github_app_there_is_no_github_button(server, monkeypatch):
+        from sednar import public_github
+        monkeypatch.setattr(public_github, "CLIENT_ID", "")
+        client = server["app"].test_client()
+        assert "Continue with GitHub" not in client.get("/login").get_data(as_text=True)
+        assert '"githubLogin": false' in client.get("/").get_data(as_text=True)
+        # The route itself sends the visitor back to the login page with a message, once.
+        r = client.get("/auth/github")
+        assert r.status_code == 303 and r.headers["Location"].endswith("/login")
+        page = client.get("/login").get_data(as_text=True)
+        assert "not available on this server" in page
+        assert "not available on this server" not in client.get("/login").get_data(as_text=True)
 
     def test_github_sign_in_finds_the_same_account_each_time(server, pm, fake_github):
         client, vid = _github_login(server)
@@ -416,8 +431,24 @@ else:
     def test_github_sign_in_checks_the_state(server, fake_github):
         client = server["app"].test_client()
         client.get("/auth/github")
-        assert client.get("/auth/github/callback?code=abc&state=forged").status_code == 400
+        # A failed callback goes back to the login page, which shows what happened once (a reload does not
+        # try the code again, and the address bar has no leftover ?code=...).
+        r = client.get("/auth/github/callback?code=abc&state=forged")
+        assert r.status_code == 303 and r.headers["Location"].endswith("/login")
+        page = client.get("/login").get_data(as_text=True)
+        assert "GitHub sign-in has expired" in page and 'class="error"' in page
+        assert "GitHub sign-in has expired" not in client.get("/login").get_data(as_text=True)
         assert client.get("/sednar/llm/settings").status_code == 401
+        assert not fake_github["exchanged"]
+
+    def test_a_cancelled_github_sign_in_says_so(server, fake_github):
+        client = server["app"].test_client()
+        client.get("/auth/github")
+        with client.session_transaction() as session:
+            state = session["lc_github_state"]
+        r = client.get(f"/auth/github/callback?error=access_denied&state={state}")
+        assert r.status_code == 303
+        assert "cancelled" in client.get("/login").get_data(as_text=True)
         assert not fake_github["exchanged"]
 
     def test_a_github_account_has_no_password_login(server, fake_github):

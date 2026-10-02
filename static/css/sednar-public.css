@@ -1,33 +1,40 @@
-/* Hosted Sednar: welcome card and dialogs, the login panel, and Settings > Account. */
+/* Hosted Sednar: the login card, the welcome card and dialogs, Settings > Account, and what the hosted
+   site hides. The page is marked early (html.lc-public-root) and by login state (body.lc-public,
+   body.lc-public-guest), so nothing it hides is ever painted first. */
 body.lc-public {
-  --lc-public-bg: #252526;
-  --lc-public-fg: #e5e5e5;
-  --lc-public-muted: #a3a3a3;
+  --lc-public-bg: #161616;
+  --lc-public-fg: #e8e8e8;
+  --lc-public-muted: #9a9a9a;
   --lc-public-border: rgba(255, 255, 255, 0.12);
+  --lc-public-field: rgba(255, 255, 255, 0.04);
   /* The theme's primary button colors, so Log in matches Open and every other primary button. */
   --lc-public-accent: var(--vscode-button-background, #3b82f6);
   --lc-public-accent-fg: var(--vscode-button-foreground, #fff);
   --lc-public-accent-hover: var(--vscode-button-hoverBackground, #2563eb);
+  /* GitHub's own look, so it reads as a different way in rather than a second Log in button. */
+  --lc-public-github: #f0f3f6;
+  --lc-public-github-fg: #1f2328;
+  --lc-public-github-hover: #fff;
   --lc-public-scrim: rgba(0, 0, 0, 0.55);
   --lc-public-danger: #f87171;
+  --lc-public-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 }
-body.lc-public.black-theme { --lc-public-bg: #141414; }
+body.lc-public.dark-theme { --lc-public-bg: #252526; }
 body.lc-public.white-theme {
   --lc-public-bg: #fff;
   --lc-public-fg: #1e293b;
   --lc-public-muted: #64748b;
   --lc-public-border: rgba(15, 23, 42, 0.12);
+  --lc-public-field: #fff;
+  --lc-public-github: #24292f;
+  --lc-public-github-fg: #fff;
+  --lc-public-github-hover: #32383f;
   --lc-public-scrim: rgba(15, 23, 42, 0.35);
   --lc-public-danger: #b91c1c;
+  --lc-public-shadow: 0 16px 48px rgba(15, 23, 42, 0.14);
 }
-body.lc-public.pink-theme {
-  --lc-public-bg: #fff;
-  --lc-public-fg: #831843;
-  --lc-public-muted: #9d4b73;
-  --lc-public-border: rgba(131, 24, 67, 0.16);
-  --lc-public-scrim: rgba(131, 24, 67, 0.25);
-  --lc-public-danger: #b91c1c;
-}
+
+/* --- dialogs (welcome, repositories, password, delete) ----------------------------------------- */
 
 .lc-public-welcome {
   position: fixed;
@@ -48,15 +55,17 @@ body.lc-public.pink-theme {
   border-radius: 14px;
   background: var(--lc-public-bg);
   color: var(--lc-public-fg);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--lc-public-shadow);
   font-size: 14px;
   line-height: 1.5;
 }
 
-.lc-public-card h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
-.lc-public-lead { margin: 0 0 12px; }
-.lc-public-card ul { margin: 0 0 20px; padding-left: 18px; color: var(--lc-public-muted); }
-.lc-public-card li + li { margin-top: 6px; }
+.lc-public-card h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.lc-public-lead { margin: 0 0 12px; color: var(--lc-public-muted); }
+.lc-public-card ul, .lc-public-card ol { margin: 0 0 20px; padding-left: 20px; }
+.lc-public-card li + li { margin-top: 8px; }
+.lc-public-card li b { font-weight: 600; }
+.lc-public-steps li::marker { color: var(--lc-public-muted); }
 
 .lc-public-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -75,12 +84,15 @@ body.lc-public.pink-theme {
 }
 
 .lc-public-primary:hover:not(:disabled) { background: var(--lc-public-accent-hover); }
+.lc-public-primary:disabled { opacity: 0.7; cursor: default; }
 
 .lc-public-secondary {
   border: 1px solid var(--lc-public-border);
   background: transparent;
   color: var(--lc-public-fg);
 }
+
+.lc-public-secondary:hover { background: var(--lc-public-field); }
 
 .lc-public-actions button:focus-visible,
 .lc-public-source:focus-visible {
@@ -90,25 +102,28 @@ body.lc-public.pink-theme {
 
 .lc-public-source {
   display: inline-block;
-  margin-top: 16px;
   color: var(--lc-public-muted);
   font-size: 13px;
 }
+
+.lc-public-source:hover { color: var(--lc-public-fg); }
 
 .lc-public-card input {
   box-sizing: border-box;
   width: 100%;
   margin: 0 0 8px;
-  padding: 8px 10px;
+  padding: 9px 11px;
   border: 1px solid var(--lc-public-border);
   border-radius: 8px;
-  background: transparent;
+  background: var(--lc-public-field);
   color: var(--lc-public-fg);
   font: inherit;
 }
 
+.lc-public-card input::placeholder { color: var(--lc-public-muted); }
 .lc-public-card input:focus-visible { outline: 2px solid var(--lc-public-accent); outline-offset: 1px; }
 .lc-public-error { min-height: 1.4em; margin-bottom: 8px; color: var(--lc-public-danger); font-size: 13px; }
+.lc-public-error:empty { display: none; }
 
 .lc-public-danger {
   border: 1px solid var(--lc-public-danger);
@@ -157,41 +172,64 @@ body.lc-public.pink-theme {
   white-space: nowrap;
 }
 
-.lc-public-links { display: flex; flex-wrap: wrap; gap: 16px; }
+.lc-public-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
 
 .lc-public-logo { display: block; height: 30px; width: auto; margin-bottom: 18px; }
 .lc-public-logo-on-light { display: none; }
-body.lc-public.white-theme .lc-public-logo-on-dark,
-body.lc-public.pink-theme .lc-public-logo-on-dark { display: none; }
-body.lc-public.white-theme .lc-public-logo-on-light,
-body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
+body.lc-public.white-theme .lc-public-logo-on-dark { display: none; }
+body.lc-public.white-theme .lc-public-logo-on-light { display: block; }
 
-/* Logged out: the login dialog and the Log in button over the editor. */
-.lc-public-login { width: min(380px, 100%); }
+/* --- the login card ------------------------------------------------------------------------------ */
+
+.lc-public-login { width: min(400px, 100%); }
+.lc-public-login .lc-public-lead { margin-bottom: 18px; }
+.lc-public-login-form .lc-public-actions { margin-top: 4px; }
 .lc-public-login-form .lc-public-actions button { width: 100%; padding: 10px; font-weight: 600; }
+
+/* In the editor, where the welcome screen would be: a card, not a modal, so there is nothing to dismiss. */
+.lc-public-inline {
+  position: relative;
+  z-index: 2;
+  margin: auto;
+  max-height: none;
+  overflow: visible;
+  padding: 28px 28px 22px;
+  transition: box-shadow 0.25s ease;
+}
+
+.lc-public-inline.is-nudged {
+  animation: lc-public-nudge 0.5s ease;
+}
+
+@keyframes lc-public-nudge {
+  0% { box-shadow: var(--lc-public-shadow), 0 0 0 0 rgb(from var(--lc-public-accent) r g b / 0.55); }
+  100% { box-shadow: var(--lc-public-shadow), 0 0 0 10px rgb(from var(--lc-public-accent) r g b / 0); }
+}
+
+body.lc-reduce-motion .lc-public-inline.is-nudged { animation: none; }
 
 .lc-public-github {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   padding: 10px;
-  border: 0;
+  border: 1px solid var(--lc-public-border);
   border-radius: 8px;
-  background: var(--lc-public-accent);
-  color: var(--lc-public-accent-fg);
+  background: var(--lc-public-github);
+  color: var(--lc-public-github-fg);
   font-weight: 600;
   text-decoration: none;
 }
 
 .lc-public-github svg { width: 18px; height: 18px; fill: currentColor; }
-.lc-public-github:hover { background: var(--lc-public-accent-hover); }
+.lc-public-github:hover { background: var(--lc-public-github-hover); }
 
 .lc-public-or {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 14px 0;
+  margin: 16px 0;
   color: var(--lc-public-muted);
   font-size: 13px;
 }
@@ -199,7 +237,7 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
 .lc-public-or::before,
 .lc-public-or::after { content: ""; flex: 1; border-top: 1px solid var(--lc-public-border); }
 
-.lc-public-switch { margin-top: 14px; color: var(--lc-public-muted); text-align: center; }
+.lc-public-switch { margin-top: 16px; color: var(--lc-public-muted); text-align: center; }
 
 .lc-public-link {
   padding: 0;
@@ -219,18 +257,64 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
   outline-offset: 2px;
 }
 
-/* Logged out: the left bar asks to log in instead of offering to open a folder. */
-#ide-editor-section #ide-explorer-empty .lc-public-guest-github {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
+/* --- logged out: the editor is a backdrop ------------------------------------------------------------ */
+
+/* The welcome screen's cards (Open project, Clone repo, New project) make way for the login card. */
+body.lc-public-guest #ide-editor-inner .sednar-welcome-inner { display: none; }
+
+/* Controls that could only open the login card are not shown; the theme button still works. */
+body.lc-public-guest #ide-project-tabs .ide-project-tab-add,
+body.lc-public-guest #ide-activity-recent,
+body.lc-public-guest #ide-activity-terminal,
+body.lc-public-guest #sednar-account-open,
+body.lc-public-guest #sednar-settings-open,
+body.lc-public-guest #sednar-chat-tabs .sednar-chat-tabs-actions,
+body.lc-public-guest #sednar-chat-messages { display: none !important; }
+
+/* The one button left in the top bar keeps its place on the right. */
+body.lc-public-guest #ide-project-tabs #sednar-theme-toggle { margin-left: auto; }
+
+/* The chat panel: one empty tab, nothing to close, and the composer waits. */
+body.lc-public-guest #sednar-chat-tabs .sednar-chat-tab-close { display: none !important; }
+
+body.lc-public-guest #sednar-chat-composer {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
-#ide-editor-section #ide-explorer-empty .lc-public-guest-github svg { flex: 0 0 14px; width: 14px; height: 14px; fill: currentColor; }
+.lc-public-chat-note {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--lc-public-muted);
+  font-size: 13px;
+  text-align: center;
+}
 
-#ide-editor-inner .sednar-settings-view .lc-public-account { gap: 12px; justify-content: flex-start; }
+/* The left bar asks to log in instead of offering to open a folder. */
+#ide-editor-section #ide-explorer-empty.lc-public-guest-explorer .ide-explorer-empty-sub { margin-bottom: 12px; }
+
+/* The last account's recent projects stay private. */
+body.lc-public-guest #ide-editor-inner .sednar-welcome-recent { display: none !important; }
+
+/* --- logged in ------------------------------------------------------------------------------------- */
+
+/* No sandbox on this server: no terminal, so no button for one. */
+body.lc-public-no-terminal #ide-activity-terminal { display: none !important; }
+
+/* The folder picker lists the user's own folder only; a laptop's Downloads and Desktop are not here. */
+body.lc-public .sednar-finder-sidebar-item[data-finder-path="~/Downloads"],
+body.lc-public .sednar-finder-sidebar-item[data-finder-path="~/Desktop"] { display: none !important; }
+
+/* A fourth welcome card (the user's GitHub repositories) makes a two-by-two grid. */
+body.lc-public #ide-editor-inner .sednar-welcome-cards:has(.lc-public-github-card) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#ide-editor-inner .sednar-settings-view .lc-public-account { gap: 12px; }
+#ide-editor-inner .sednar-settings-view .lc-public-account .sednar-settings-row-text { flex: 1; }
 
 .lc-public-avatar {
   display: inline-flex;
@@ -254,6 +338,3 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
   background: var(--lc-public-danger);
   color: #fff;
 }
-
-/* Logged out: the last account's recent projects stay private. */
-body.lc-public-guest #ide-editor-inner .sednar-welcome-recent { display: none !important; }

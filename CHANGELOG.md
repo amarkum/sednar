@@ -2,6 +2,17 @@
 
 Notes for the agent harness: what was added, and which files changed. Newest first.
 
+## A clearer way in, October 2026
+
+The hosted site's first minutes, made less confusing (`public_mode.py`, `public_github.py`, `static/js/sednar-public.js`, `static/css/sednar-public.css`, `static/js/sednar.js`).
+
+- **Logged out:** the login card sits in the middle of the editor, where the welcome screen's Open project, Clone repo and New project cards used to invite clicks that only opened a dialog. The top bar keeps just the theme button, the chat panel says to log in, and the left bar says where projects will appear. A click or key anywhere else brings the card forward. `#signup` in the address opens it on Create your account.
+- **One GitHub button:** "Continue with GitHub" has GitHub's own look (light on dark themes, dark on light) so it no longer reads as a second Log in button. It appears only when a GitHub OAuth app is configured, on the page and on `/login` and `/signup` alike (`githubLogin` in the page config).
+- **GitHub errors:** a failed or cancelled callback sends the visitor to `/login` with the reason shown once (a flash in the session), instead of rendering the login page at `/auth/github/callback?code=…`, which failed again on reload. The messages say what to do next. `/auth/github` while logged in goes to the editor.
+- **`/login`, `/signup` and `/privacy`** follow the editor's theme (Black by default, or the one saved in the editor, or the system's when the editor follows it) instead of the system's light mode. The sign-up page says how long a password must be. Privacy's back link goes to the editor.
+- **Logged in:** the welcome card is three numbered things to know, with "Not now" instead of "Look around first"; the account page has Log out beside the name; paths inside the user's folder show as `~/…` and never the server's path (`_sednarShortPath`); the clone and new-project dialogs default to `~`; the folder picker has no Downloads, Desktop or `..` above the user's folder; GitHub users get a "Your GitHub repositories" card on the welcome screen and a "Paste a URL instead" button in the repository picker. When the server has no sandbox (`terminal: false` in the page config), the terminal button and Terminal settings are not shown.
+- **Tests:** `test_public_mode.py` covers the redirect-and-message callback, a cancelled sign-in, and a server without a GitHub app.
+
 ## Sednar: the hosted site, October 2026 (amarkum/sednar)
 
 - **No built-in browser:** the built-in browser, design compare and Figma were removed from Sednar; it edits code. Gone are `browser.py`, `browser_stream.py`, `browser_snapshot.py` and `figma.py`, the `browser` tool, the `/sednar/browser/...` and `/sednar/figma/token` routes, the Browser tab and Settings > Browser, the UI-check and design gates, opening sites from chat and the go-ahead for a send, post or buy step the request asked for, `~/.sednar/browser.json`, and Playwright and browser-cookie3 in `requirements.txt`.

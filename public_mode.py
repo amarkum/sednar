@@ -883,6 +883,9 @@ def _end_login() -> None:
     session.clear()
 
 
+# The standalone pages (/login, /signup, /privacy) look like the editor: Black by default, or the theme the
+# visitor picked in the editor (the same localStorage keys the app page reads), so going from one to the
+# other never flips between light and dark.
 _AUTH_PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -895,49 +898,64 @@ _AUTH_PAGE = """<!doctype html>
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#0f0f10">
 <style>
-  :root { --bg: #1e1e1e; --card: #252526; --fg: #e5e5e5; --muted: #a3a3a3; --border: rgba(255,255,255,.12);
-          --field: #1b1b1c; --accent: #81a1c1; --accent-hover: #87a6c4; --accent-fg: #191c22; --error: #f87171; }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #f8fafc; --card: #fff; --fg: #1e293b;
-          --muted: #64748b; --border: rgba(15,23,42,.12); --field: #fff; --accent: #2778c1; --accent-hover: #2268a8;
-          --accent-fg: #fcfcfc; --error: #b91c1c; } }
-  :root[data-theme="light"] { --bg: #f8fafc; --card: #fff; --fg: #1e293b; --muted: #64748b; --border: rgba(15,23,42,.12);
-          --field: #fff; --accent: #2778c1; --accent-hover: #2268a8; --accent-fg: #fcfcfc; --error: #b91c1c; }
-  /* Buttons in the editor's own colors for the theme picked there (Black, the default, is soft blue). */
-  :root[data-sednar-theme="dark"] { --accent: #3b82f6; --accent-hover: #2563eb; --accent-fg: #fff; }
+  /* Black, the editor's default theme. */
+  :root { color-scheme: dark; --bg: #0a0a0a; --card: #161616; --fg: #e8e8e8; --muted: #9a9a9a; --border: rgba(255,255,255,.12);
+          --field: #0e0e0e; --accent: #3b82f6; --accent-hover: #2563eb; --accent-fg: #fff; --error: #f87171; --error-bg: rgba(248,113,113,.1);
+          --github: #f0f3f6; --github-fg: #1f2328; --github-hover: #fff; }
+  /* The editor's Dark theme. */
+  :root[data-theme="dark"] { --bg: #1e1e1e; --card: #252526; --field: #1b1b1c; --accent: #81a1c1; --accent-hover: #87a6c4; --accent-fg: #191c22; }
+  /* The editor's Light theme. */
+  :root[data-theme="light"] { color-scheme: light; --bg: #f8fafc; --card: #fff; --fg: #1e293b; --muted: #64748b; --border: rgba(15,23,42,.12);
+          --field: #fff; --accent: #2778c1; --accent-hover: #2268a8; --accent-fg: #fff; --error: #b91c1c; --error-bg: rgba(185,28,28,.07);
+          --github: #24292f; --github-fg: #fff; --github-hover: #32383f; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg);
          color: var(--fg); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { width: min(380px, 100%); padding: 28px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+  main { width: min(400px, 100%); padding: 28px 28px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
   .brand { display: block; margin-bottom: 22px; }
-  .brand img { display: block; height: 34px; width: auto; }
+  .brand img { display: block; height: 32px; width: auto; }
   .brand .on-light { display: none; }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .brand .on-dark { display: none; }
-                                         :root:not([data-theme="dark"]) .brand .on-light { display: block; } }
   :root[data-theme="light"] .brand .on-dark { display: none; }
   :root[data-theme="light"] .brand .on-light { display: block; }
-  h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+  h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
   p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
-  label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 500; }
+  label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 13px; font-weight: 500; }
+  label .hint { color: var(--muted); font-size: 12px; font-weight: 400; }
   input { width: 100%; margin: 0 0 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
           background: var(--field); color: var(--fg); font: inherit; }
   input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button { width: 100%; margin-top: 4px; padding: 10px; border: 0; border-radius: 8px; background: var(--accent);
+  button { width: 100%; margin-top: 2px; padding: 10px; border: 0; border-radius: 8px; background: var(--accent);
            color: var(--accent-fg); font: inherit; font-weight: 600; cursor: pointer; }
-  .error { margin: 0 0 14px; padding: 8px 10px; border: 1px solid var(--error); border-radius: 8px; color: var(--error); font-size: 14px; }
+  button:hover { background: var(--accent-hover); }
+  .error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--error); border-radius: 8px; background: var(--error-bg);
+           color: var(--error); font-size: 14px; line-height: 1.4; }
   .switch { margin: 18px 0 0; text-align: center; font-size: 14px; color: var(--muted); }
   a { color: var(--accent); }
-  .note { margin: 18px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
-  button:hover, .github:hover { background: var(--accent-hover); }
+  .note { margin: 16px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+  .note a { color: inherit; }
   .doc h1 { margin-bottom: 12px; } .doc h2 { margin: 22px 0 6px; font-size: 16px; }
   .doc p, .doc li { color: var(--fg); font-size: 14px; } .doc ul { padding-left: 20px; } .doc li + li { margin-top: 6px; }
-  .github { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px;
-            border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg);
+  .doc .back { display: inline-block; margin-top: 8px; }
+  /* GitHub's own look, so it reads as a different way in, not a second Log in button. */
+  .github { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px;
+            border: 1px solid var(--border); border-radius: 8px; background: var(--github); color: var(--github-fg);
             font-weight: 600; text-decoration: none; }
+  .github:hover { background: var(--github-hover); }
   .github svg { width: 18px; height: 18px; fill: currentColor; }
   .or { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: 13px; }
   .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
 </style>
-<script>try { var t = localStorage.getItem("sednar-theme"); if (t === "white" || t === "pink") document.documentElement.dataset.theme = "light"; else if (t === "dark" || t === "black") document.documentElement.dataset.theme = "dark"; if (t) document.documentElement.dataset.sednarTheme = t; } catch (e) {}</script>
+<script>
+  try {
+    var t = localStorage.getItem("sednar-theme");
+    var prefs = JSON.parse(localStorage.getItem("sednar_settings_v1") || "{}") || {};
+    if (prefs.themeFollowSystem && window.matchMedia) {
+      t = window.matchMedia("(prefers-color-scheme: dark)").matches ? (prefs.themeDark || "black") : (prefs.themeLight || "white");
+    }
+    if (t === "white" || t === "pink") document.documentElement.dataset.theme = "light";
+    else if (t === "dark") document.documentElement.dataset.theme = "dark";
+  } catch (e) {}
+</script>
 </head>
 <body>
 <main>
@@ -950,7 +968,7 @@ _AUTH_PAGE = """<!doctype html>
     <input type="hidden" name="csrf" value="__CSRF__">
     <label for="email">Email</label>
     <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="__EMAIL__" autofocus>
-    <label for="password">Password</label>
+    <label for="password">Password__PW_HINT__</label>
     <input id="password" name="password" type="password" autocomplete="__PW_AUTOCOMPLETE__" required minlength="__MIN__" maxlength="200">
     <button type="submit">__BUTTON__</button>
   </form>
@@ -962,15 +980,15 @@ _AUTH_PAGE = """<!doctype html>
 """
 
 
-_GITHUB_BUTTON = (
-    '<a class="github" href="/auth/github"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 '
+GITHUB_ICON = (
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 '
     '3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13'
     '-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 '
     '0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 '
     '2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 '
-    '1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>Continue with GitHub</a>'
-    '<div class="or">or with email</div>'
+    '1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>'
 )
+_GITHUB_BUTTON = '<a class="github" href="/auth/github">' + GITHUB_ICON + 'Continue with GitHub</a><div class="or">or with email</div>'
 
 
 _PRIVACY = """
@@ -992,7 +1010,7 @@ _PRIVACY = """
 <h2>Deleting your data</h2>
 <p>Settings &gt; Account &gt; Delete account removes your account, folder, chats and saved keys at once. Backups of the server's disk may keep a copy for a few days.</p>
 __CONTACT__
-<p><a href="/login">Back to __BRAND__</a></p>
+<p><a class="back" href="/">Back to __BRAND__</a></p>
 """
 
 
@@ -1002,7 +1020,7 @@ def _privacy_page():
     contact = f"<h2>Contact</h2><p>{escape(CONTACT)}</p>" if CONTACT else ""
     body = _PRIVACY.replace("__BRAND__", escape(BRAND)).replace("__CONTACT__", contact)
     page = _AUTH_PAGE.split("<body>")[0].replace("__TITLE__", "Privacy").replace("__BRAND__", escape(BRAND))
-    page = page.replace("main { width: min(380px, 100%);", "main { width: min(680px, 100%);")
+    page = page.replace("main { width: min(400px, 100%);", "main { width: min(680px, 100%);")
     logo = ('<a class="brand" href="/" aria-label="__B__"><img class="on-dark" src="/sednar/assets/sednar/sednar-logo-white.png" alt="__B__">'
             '<img class="on-light" src="/sednar/assets/sednar/sednar-logo-dark.png" alt="__B__"></a>').replace("__B__", escape(BRAND))
     return Response(page + '<body><main class="doc">' + logo + body + "</main></body></html>", mimetype="text/html")
@@ -1011,24 +1029,26 @@ def _privacy_page():
 def _auth_page(mode: str, error: str = "", email: str = "", status: int = 200):
     from html import escape
     from flask import Response
-    from sednar import public_accounts
+    from sednar import public_accounts, public_github
     signup = mode == "signup"
     values = {
-        "__TITLE__": "Sign up" if signup else "Log in",
-        "__HEADING__": "Create your account" if signup else "Log in",
-        "__LEAD__": f"Try the {BRAND} coding agent in your browser, on a project of your own." if signup
+        "__TITLE__": "Create an account" if signup else "Log in",
+        "__HEADING__": "Create your account" if signup else f"Log in to {escape(BRAND)}",
+        "__LEAD__": f"Try the {escape(BRAND)} coding agent in your browser, on a project of your own." if signup
                     else "Welcome back. Your projects and saved keys are waiting.",
         "__ERROR__": f'<div class="error" role="alert">{escape(error)}</div>' if error else "",
         "__ACTION__": "/signup" if signup else "/login",
         "__CSRF__": escape(_csrf_token()),
         "__EMAIL__": escape(email),
         "__PW_AUTOCOMPLETE__": "new-password" if signup else "current-password",
+        "__PW_HINT__": f'<span class="hint">{public_accounts.MIN_PASSWORD} characters or more</span>' if signup else "",
         "__MIN__": str(public_accounts.MIN_PASSWORD if signup else 1),
         "__BUTTON__": "Create account" if signup else "Log in",
         "__SWITCH__": 'Already have an account? <a href="/login">Log in</a>' if signup
                       else 'New here? <a href="/signup">Create an account</a>',
         "__SOURCE_LINK__": f' · <a href="{escape(SOURCE_URL)}" target="_blank" rel="noopener">Run it yourself</a>' if SOURCE_URL else "",
-        "__GITHUB__": _GITHUB_BUTTON,
+        # Only when a GitHub OAuth app is configured: a button that leads to "not set up" helps nobody.
+        "__GITHUB__": _GITHUB_BUTTON if public_github.enabled() else "",
         "__BRAND__": escape(BRAND),
     }
     page = _AUTH_PAGE
@@ -1044,10 +1064,19 @@ def _install_account_routes(app) -> None:
     def form_email() -> str:
         return str(request.form.get("email") or "")[:254]
 
+    def back_to_login(message: str):
+        """Sends the visitor to /login with message shown once. A redirect keeps the address clean (no
+        /auth/github/callback?code=... that fails again on reload) and the message survives it in the session."""
+        session["lc_flash"] = message
+        return redirect("/login", code=303)
+
     @app.route("/login", methods=["GET", "POST"])
     def sednar_public_login():
         if request.method == "GET":
-            return redirect("/") if current() else _auth_page("login")
+            if current():
+                return redirect("/")
+            flash = session.pop("lc_flash", None)
+            return _auth_page("login", str(flash) if isinstance(flash, str) else "")
         email, password = form_email(), str(request.form.get("password") or "")
         if not _csrf_ok():
             return _auth_page("login", "The form had expired. Try again.", email, 400)
@@ -1142,8 +1171,10 @@ def _install_account_routes(app) -> None:
 
     @app.route("/auth/github")
     def sednar_public_github_start():
+        if current():
+            return redirect("/")
         if not public_github.enabled():
-            return _auth_page("login", "GitHub sign-in is not set up on this server. Log in with email.", status=503)
+            return back_to_login("GitHub sign-in is not available on this server. Log in with your email instead.")
         state = secrets.token_urlsafe(24)
         session["lc_github_state"] = state
         return redirect(public_github.authorize_url(github_redirect_uri(), state))
@@ -1153,16 +1184,16 @@ def _install_account_routes(app) -> None:
         import hmac
         expected = session.pop("lc_github_state", None)
         if not public_github.enabled() or not expected or not hmac.compare_digest(str(expected), str(request.args.get("state") or "")):
-            return _auth_page("login", "GitHub sign-in had expired. Try again.", status=400)
+            return back_to_login("That GitHub sign-in has expired. Click Continue with GitHub to start again.")
         if request.args.get("error") or not request.args.get("code"):
-            return _auth_page("login", "GitHub sign-in was cancelled.", status=400)
+            return back_to_login("GitHub sign-in was cancelled, so nothing changed. You can try again or log in with your email.")
         if _rate_limited("github", request.remote_addr or "?", 30, 600):
-            return _auth_page("login", "Too many attempts. Wait a few minutes and try again.", status=429)
+            return back_to_login("Too many attempts. Wait a few minutes and try again.")
         try:
             token = public_github.exchange_code(str(request.args["code"]), github_redirect_uri())
             who = public_github.user(token)
         except (public_github.GitHubError, ValueError, OSError) as e:
-            return _auth_page("login", str(e) if isinstance(e, public_github.GitHubError) else "Could not reach GitHub. Try again.", status=502)
+            return back_to_login(str(e) if isinstance(e, public_github.GitHubError) else "Could not reach GitHub. Try again in a moment.")
         user = public_accounts.github_account(who["id"], who["login"])
         secret = os.environ.get("SEDNAR_PUBLIC_DATA_KEY") or app.config["SECRET_KEY"]
         _start_login(user, public_accounts.server_key(secret, user["key_salt"]), github_token=token)
@@ -1201,7 +1232,7 @@ def page_config() -> str:
     """The script tag that tells the page it runs as the public demo, for the logged-in user."""
     if not ENABLED:
         return ""
-    from sednar import public_accounts
+    from sednar import public_accounts, public_github
     vid = current()
     if vid:
         info = public_accounts.account(vid)
@@ -1209,11 +1240,11 @@ def page_config() -> str:
             has_github = bool(vid in _github_tokens)
         config = {"home": home(), "project": sample_project(), "email": info.get("name", ""),
                   "github": info.get("github", ""), "githubRepos": has_github, "csrf": _csrf_token(), "source": SOURCE_URL,
-                  "brand": BRAND}
+                  "brand": BRAND, "terminal": _sandbox_ok}
     else:
         # Logged out: the editor shows, and the public script asks to log in before anything is used.
         config = {"guest": True, "minPassword": public_accounts.MIN_PASSWORD, "csrf": _csrf_token(),
-                  "source": SOURCE_URL, "brand": BRAND}
+                  "source": SOURCE_URL, "brand": BRAND, "githubLogin": public_github.enabled(), "terminal": _sandbox_ok}
     return ("<script>window.SEDNAR_PUBLIC = " + json.dumps(config).replace("</", "<\\/") + ";</script>\n"
             '<link rel="stylesheet" href="/sednar/static/css/sednar-public.css">\n'
             '<script src="/sednar/static/js/sednar-public.js"></script>\n')

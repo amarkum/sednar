@@ -6307,6 +6307,9 @@ function _sednarGetParentPath(path) {
   if (!path || path === "~") return null;
   const normalized = String(path).replace(/\/$/, "");
   if (!normalized || normalized === "/") return null;
+  // On the hosted site the user's folder is the top: there is no ".." above it.
+  const publicHome = window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.home ? String(window.SEDNAR_PUBLIC.home).replace(/\/+$/, "") : "";
+  if (publicHome && normalized === publicHome) return null;
   const parts = normalized.split("/").filter(Boolean);
   if (parts.length <= 1) return "/";
   return "/" + parts.slice(0, -1).join("/");
@@ -15092,7 +15095,9 @@ function _sednarSettingsButton(label, action, extra, primary) {
 
 function _sednarShortPath(path) {
   const p = String(path || "");
-  const home = _sednarBrowserHomePath || "";
+  // On the hosted site the user's folder is home, so its server path is never shown.
+  const publicHome = window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.home ? String(window.SEDNAR_PUBLIC.home).replace(/\/+$/, "") : "";
+  const home = publicHome || _sednarBrowserHomePath || "";
   if (home && home !== "~" && (p === home || p.indexOf(home + "/") === 0)) return "~" + p.slice(home.length);
   const m = p.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
   if (m) return "~" + (m[2] || "");
@@ -15938,6 +15943,8 @@ function openSednarMcpAddDialog() {
 window.openSednarMcpAddDialog = openSednarMcpAddDialog;
 
 function _sednarDefaultCloneParent() {
+  // On the hosted site everything goes in the user's folder, which the server knows as ~.
+  if (window.SEDNAR_PUBLIC && window.SEDNAR_PUBLIC.home) return "~";
   const recent = getSednarRecentProjects().find(function(p) { return !_sednarIsWorkspaceFilePath(p); });
   if (recent) return recent.replace(/[\\/][^\\/]+[\\/]?$/, "") || "~";
   return "~";
