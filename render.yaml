@@ -1,0 +1,36 @@
+# Render blueprint for Sednar (see "Host a public demo" in README.md).
+# New > Blueprint on render.com, pick the amarkum/sednar repository, and Render builds the Dockerfile from main.
+services:
+  - type: web
+    name: sednar
+    runtime: docker
+    branch: main
+    # Accounts, projects and chats live on the disk below, and only paid instances can have a disk.
+    # Starter has 512 MB, enough for a few people at once.
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeploy: true
+    # Add these as custom domains, then point their DNS at Render (Settings > Custom Domains shows the records).
+    domains:
+      - sednar.com
+      - www.sednar.com
+    disk:
+      name: sednar-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SEDNAR_SECRET_KEY
+        generateValue: true
+      - key: SEDNAR_PUBLIC_SECURE_COOKIE
+        value: "1"
+      # The one address: www.sednar.com and the onrender.com address redirect here.
+      - key: SEDNAR_PUBLIC_URL
+        value: https://sednar.com
+      - key: SEDNAR_PUBLIC_MAX_USERS
+        value: "200"
+      # From a GitHub OAuth app whose callback URL is https://<this service>/auth/github/callback.
+      # Leave them empty to offer email sign-up only.
+      - key: SEDNAR_GITHUB_CLIENT_ID
+        sync: false
+      - key: SEDNAR_GITHUB_CLIENT_SECRET
+        sync: false

@@ -1,0 +1,12 @@
+.git
+.claude
+.public-visitors
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.DS_Store
+.env
+.env.*
+tests
+docs

@@ -1,0 +1,19 @@
+# Core
+Flask>=3.0
+Flask-SocketIO>=5.3
+requests>=2.31
+PyYAML>=6.0
+numpy>=1.26
+scikit-learn>=1.4
+
+# Optional: Python language server in the editor
+flask-sock>=0.7
+python-lsp-server>=1.11
+
+# Optional: MCP servers and tool argument validation
+mcp>=1.0
+jsonschema>=4.0
+
+# Hosted site (SEDNAR_PUBLIC=1): encrypts the API keys people save, and serves it in production
+cryptography>=42
+gunicorn>=22

@@ -1,0 +1,9 @@
+# HTTPS for sednar.com (Caddy gets and renews the certificate) and the app behind it.
+sednar.com {
+	encode zstd gzip
+	reverse_proxy sednar:9000
+}
+
+www.sednar.com {
+	redir https://sednar.com{uri} permanent
+}

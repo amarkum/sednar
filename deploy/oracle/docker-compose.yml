@@ -1,0 +1,34 @@
+# Sednar on one server, such as an Oracle Cloud Always Free VM: the app, and Caddy in front of it, which
+# gets the HTTPS certificate for sednar.com and passes requests (WebSockets included) to the app.
+# Run from this folder: docker compose up -d --build
+services:
+  sednar:
+    build: ../..
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SEDNAR_PUBLIC_URL: https://sednar.com
+      SEDNAR_PUBLIC_SECURE_COOKIE: "1"
+    volumes:
+      - sednar-data:/data
+    expose:
+      - "9000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - sednar
+
+volumes:
+  sednar-data:
+  caddy-data:
+  caddy-config:

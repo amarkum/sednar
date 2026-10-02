@@ -1,0 +1,38 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sednar",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "port": 9000
+    },
+    {
+      "name": "sednar-alt",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "SEDNAR_PORT": "9001"
+      },
+      "port": 9001
+    },
+    {
+      "name": "sednar-public",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "server.py"
+      ],
+      "env": {
+        "SEDNAR_PUBLIC": "1",
+        "SEDNAR_PORT": "9002",
+        "SEDNAR_PUBLIC_ROOT": ".public-visitors",
+        "SEDNAR_SECRET_KEY": "local-public-test"
+      },
+      "port": 9002
+    }
+  ]
+}

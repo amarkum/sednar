@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bill splitter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Split the bill</h1>
+    <label>Bill <input id="bill" type="number" min="0" step="0.01" value="84.50"></label>
+    <label>Tip (%) <input id="tip" type="number" min="0" max="100" value="15"></label>
+    <label>People <input id="people" type="number" min="1" value="3"></label>
+    <dl class="result">
+      <dt>Tip</dt><dd id="tip-amount">–</dd>
+      <dt>Total</dt><dd id="total">–</dd>
+      <dt>Each person pays</dt><dd id="each">–</dd>
+    </dl>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
