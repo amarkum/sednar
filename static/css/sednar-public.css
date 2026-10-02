@@ -69,12 +69,12 @@ body.lc-public.pink-theme {
 }
 
 .lc-public-primary {
-  border: 1px solid var(--lc-public-accent);
+  border: 0;
   background: var(--lc-public-accent);
   color: var(--lc-public-accent-fg);
 }
 
-.lc-public-primary:hover:not(:disabled) { border-color: var(--lc-public-accent-hover); background: var(--lc-public-accent-hover); }
+.lc-public-primary:hover:not(:disabled) { background: var(--lc-public-accent-hover); }
 
 .lc-public-secondary {
   border: 1px solid var(--lc-public-border);
@@ -176,7 +176,7 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
   justify-content: center;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--lc-public-accent);
+  border: 0;
   border-radius: 8px;
   background: var(--lc-public-accent);
   color: var(--lc-public-accent-fg);
@@ -185,7 +185,7 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
 }
 
 .lc-public-github svg { width: 18px; height: 18px; fill: currentColor; }
-.lc-public-github:hover { border-color: var(--lc-public-accent-hover); background: var(--lc-public-accent-hover); }
+.lc-public-github:hover { background: var(--lc-public-accent-hover); }
 
 .lc-public-or {
   display: flex;
@@ -254,3 +254,6 @@ body.lc-public.pink-theme .lc-public-logo-on-light { display: block; }
   background: var(--lc-public-danger);
   color: #fff;
 }
+
+/* Logged out: the last account's recent projects stay private. */
+body.lc-public-guest #ide-editor-inner .sednar-welcome-recent { display: none !important; }

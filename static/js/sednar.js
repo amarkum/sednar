@@ -2317,7 +2317,6 @@ const _SEDNAR_THEMES = [
   { id: "dark", label: "Dark", swatch: "#1e293b" },
   { id: "white", label: "Light", swatch: "#f1f5f9" },
   { id: "black", label: "Black", swatch: "#0a0a0a" },
-  { id: "pink", label: "Pink", swatch: "#fbcfe8" },
 ];
 
 function _sednarCurrentThemeId() {
@@ -2325,7 +2324,7 @@ function _sednarCurrentThemeId() {
   return match ? match.id : "dark";
 }
 
-// The theme is a body class ("dark-theme", "white-theme", "black-theme", "pink-theme").
+// The theme is a body class ("dark-theme", "white-theme", "black-theme").
 window.setSednarTheme = function(theme) {
   const next = _SEDNAR_THEMES.some(function(t) { return t.id === theme; }) ? theme : "dark";
   _SEDNAR_THEMES.forEach(function(t) { document.body.classList.remove(t.id + "-theme"); });
@@ -2347,7 +2346,7 @@ function _sednarSyncThemeButton() {
   btn.setAttribute("aria-label", btn.title);
 }
 
-// One button cycles Dark -> Light -> Black -> Pink.
+// One button cycles Dark -> Light -> Black.
 window.toggleSednarTheme = function() {
   const current = _sednarCurrentThemeId();
   const idx = _SEDNAR_THEMES.findIndex(function(t) { return t.id === current; });

@@ -366,7 +366,7 @@
     const themeRows = [clientSwitch("themeFollowSystem", "Match system appearance", "Switch between a dark and a light theme when your operating system does.")];
     if (follow) {
       themeRows.push(clientChoice("themeDark", "Dark theme", "Used while the system is dark.", [{ value: "dark", label: "Dark" }, { value: "black", label: "Black" }]));
-      themeRows.push(clientChoice("themeLight", "Light theme", "Used while the system is light.", [{ value: "white", label: "Light" }, { value: "pink", label: "Pink" }]));
+      themeRows.push(clientChoice("themeLight", "Light theme", "Used while the system is light.", [{ value: "white", label: "Light" }]));
     }
     html += '<div class="sednar-settings-group sednar-settings-group-gap">' + themeRows.join("") + "</div>";
 

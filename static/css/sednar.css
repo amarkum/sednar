@@ -7927,11 +7927,6 @@ body.white-theme #ide-editor-inner #ide-settings-view,
 body.white-theme #ide-editor-inner #ide-project-tabs,
 body.white-theme #ide-editor-inner #ide-hscroll,
 body.white-theme #sednarProjectBrowserModal,
-body.dark-theme .sednar-dialog-overlay {
-	--lc-btn-primary-bg: #3b82f6;
-	--lc-btn-primary-fg: #fff;
-	--lc-btn-primary-hover-bg: #2563eb;
-}
 body.white-theme .sednar-dialog-overlay {
 	--lc-fg: 20 20 20;
 	--lc-bg: #ffffff;
@@ -7997,6 +7992,12 @@ body.dark-theme .sednar-dialog-overlay {
 	--lc-btn-hover-bg: #566074;
 	--lc-send-fg: #171c27;
 }
+body.dark-theme .sednar-dialog-overlay {
+	--lc-btn-primary-bg: #3b82f6;
+	--lc-btn-primary-fg: #fff;
+	--lc-btn-primary-hover-bg: #2563eb;
+}
+
 
 body.pink-theme #ide-editor-inner #sednar-agent-panel,
 body.pink-theme .sednar-workspace-manager,

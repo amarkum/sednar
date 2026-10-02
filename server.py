@@ -297,7 +297,8 @@ PAGE = """<!doctype html>
     if (prefs.themeFollowSystem && window.matchMedia) {
       saved = window.matchMedia("(prefers-color-scheme: dark)").matches ? (prefs.themeDark || "black") : (prefs.themeLight || "white");
     }
-    if (["dark", "white", "black", "pink"].indexOf(saved) >= 0) document.body.className = saved + "-theme";
+    if (saved === "pink") saved = "white";  // the Pink theme is gone; its users get Light
+    if (["dark", "white", "black"].indexOf(saved) >= 0) document.body.className = saved + "-theme";
     if (prefs.reduceMotion) document.body.classList.add("lc-reduce-motion");
   } catch (e) {}
 </script>

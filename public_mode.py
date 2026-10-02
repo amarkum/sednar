@@ -904,7 +904,6 @@ _AUTH_PAGE = """<!doctype html>
           --field: #fff; --accent: #2778c1; --accent-hover: #2268a8; --accent-fg: #fcfcfc; --error: #b91c1c; }
   /* Buttons in the editor's own colors for the theme picked there (Black, the default, is soft blue). */
   :root[data-sednar-theme="dark"] { --accent: #3b82f6; --accent-hover: #2563eb; --accent-fg: #fff; }
-  :root[data-sednar-theme="pink"] { --accent: #db2777; --accent-hover: #be185d; --accent-fg: #fff; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg);
          color: var(--fg); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
