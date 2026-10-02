@@ -517,9 +517,10 @@ def install(port: int) -> None:
     os.chdir(jail)
     global _sandbox_ok
     from sednar import sandbox
-    _sandbox_ok = sandbox.works()
+    reason = sandbox.problem()
+    _sandbox_ok = not reason
     if not _sandbox_ok:
-        logger.warning("Sednar public mode: no working bubblewrap sandbox, so the terminal is off.")
+        logger.warning("Sednar public mode: no working bubblewrap sandbox, so the terminal is off: %s", reason)
     _git_environment()
     _carry_context_into_pools()
 

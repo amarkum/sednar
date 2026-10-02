@@ -105,18 +105,25 @@ def terminal(user_dir: str, name: str, cwd: str | None = None) -> tuple[list[str
     return argv + ["/bin/bash", "--rcfile", "/etc/sednar.bashrc", "-i"], fds
 
 
-def works() -> bool:
-    """True when a jail can actually be made here (bwrap installed, and user namespaces allowed)."""
+def problem() -> str:
+    """Why a jail cannot be made here ("" when it can): bwrap missing, or its own error message."""
     import subprocess
     import tempfile
     if not bwrap():
-        return False
+        return "bubblewrap (bwrap) is not installed"
     with tempfile.TemporaryDirectory() as folder:
         try:
-            argv = jail(folder, "/home/check")
-            return subprocess.run(argv + ["/bin/true"], capture_output=True, timeout=15).returncode == 0
-        except (OSError, subprocess.SubprocessError, RuntimeError):
-            return False
+            done = subprocess.run(jail(folder, "/home/check") + ["/bin/true"], capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError, RuntimeError) as e:
+            return str(e)
+    if done.returncode == 0:
+        return ""
+    return (done.stderr or done.stdout or f"bwrap exited with {done.returncode}").strip()
+
+
+def works() -> bool:
+    """True when a jail can actually be made here (bwrap installed, and user namespaces allowed)."""
+    return not problem()
 
 
 def user_dir_for(path: str, root: str) -> str | None:

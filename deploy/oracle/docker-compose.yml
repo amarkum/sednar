@@ -14,10 +14,12 @@ services:
     expose:
       - "9000"
     # The terminal's sandbox (bubblewrap) makes user namespaces, which Docker's default seccomp and
-    # AppArmor profiles block. The server itself still runs as an unprivileged user with no capabilities.
+    # AppArmor profiles block, and mounts a /proc of its own, which Docker's masked /proc paths block
+    # (systempaths). The server itself still runs as an unprivileged user with no capabilities.
     security_opt:
       - seccomp=unconfined
       - apparmor=unconfined
+      - systempaths=unconfined
     # A runaway terminal (a fork bomb) stops here instead of taking the whole server down.
     pids_limit: 1024
 
